@@ -149,7 +149,7 @@ NTSTATUS UnprotectSecNoChange()
 	status = PsLookupProcessByProcessId((HANDLE)TargetId, &pProcess);
 	if (!NT_SUCCESS(status))
 	{
-		LOG("PsLookupProcessByProcessId failed 0x%lX", status);
+		//LOG("PsLookupProcessByProcessId failed 0x%lX", status);
 		return STATUS_SUCCESS;
 	}
 
@@ -157,59 +157,58 @@ NTSTATUS UnprotectSecNoChange()
 	status = FindVAD(pProcess, (ULONG64)ImageBase, &pVadShort);
 	if (!NT_SUCCESS(status))
 	{
-		LOG("FindVAD failed 0x%lX", status);
+		//LOG("FindVAD failed 0x%lX", status);
 		return STATUS_SUCCESS;
 	}
 
-	pVadShort->u.VadFlags.NoChange = 0;
-	pVadShort->u.VadFlags.Protection = 6;
+	//pVadShort->u.VadFlags.NoChange = 0;
+	//pVadShort->u.VadFlags.Protection = 6;
 
-	/*KAPC_STATE apc;
-	KeStackAttachProcess(pProcess, &apc);
-
-	MEMORY_BASIC_INFORMATION mbi;
-	mbi.RegionSize = 0x1000;
-	for (ULONG current = ImageBase; current < ImageBase + ImageSize; current += mbi.RegionSize)
+	if (pVadShort->u.VadFlags.Lock == 0x7)
 	{
-		status = ZwQueryVirtualMemory(
-			NtCurrentProcess(), 
-			(PVOID)current, 
-			MemoryBasicInformation, 
-			&mbi, 
-			sizeof(mbi),
-			NULL);
-
-		if (!NT_SUCCESS(status))
-		{
-			continue;
-		}
-
-		if (mbi.State != MEM_COMMIT || mbi.Protect == PAGE_NOACCESS)
-		{
-			continue;
-		}
-
-		LOG("AllocBaseAddress: 0x%lX", mbi.AllocationBase);
-		LOG("BaseAddress: 0x%lX", mbi.BaseAddress);
-		LOG("RegionSize: 0x%lX", mbi.RegionSize);
-		LOG("State: 0x%lX", mbi.State);
-		LOG("Type: 0x%lX", mbi.Type);
-		LOG("Protect: 0x%lX", mbi.Protect);
-		LOG("AllocationProtect: 0x%lX", mbi.AllocationProtect);
-
-		PMMVAD_SHORT pVadShort = NULL;
-		status = FindVAD(pProcess, (ULONG64)mbi.BaseAddress, &pVadShort);
-		if (!NT_SUCCESS(status))
-		{
-			LOG("FindVAD failed 0x%lX", status);
-			continue;
-		}
-
-		LOG("NoChange: 0x%lX", pVadShort->u.VadFlags.NoChange);
-		LOG("Protection: 0x%lX", pVadShort->u.VadFlags.Protection);
+		pVadShort->u.VadFlags.Lock = 6;
+		return STATUS_SUCCESS;
 	}
-
-	KeUnstackDetachProcess(&apc);*/
+	else if (pVadShort->u.VadFlags.LockContended == 0x7)
+	{
+		pVadShort->u.VadFlags.LockContended = 6;
+		return STATUS_SUCCESS;
+	}
+	else if (pVadShort->u.VadFlags.DeleteInProgress == 0x7)
+	{
+		pVadShort->u.VadFlags.DeleteInProgress = 6;
+		return STATUS_SUCCESS;
+	}
+	else if (pVadShort->u.VadFlags.NoChange == 0x7)
+	{
+		pVadShort->u.VadFlags.NoChange = 6;
+		return STATUS_SUCCESS;
+	}
+	else if (pVadShort->u.VadFlags.VadType == 0x7)
+	{
+		pVadShort->u.VadFlags.VadType = 6;
+		return STATUS_SUCCESS;
+	}
+	else if (pVadShort->u.VadFlags.Protection == 0x7)
+	{
+		pVadShort->u.VadFlags.Protection = 6;
+		return STATUS_SUCCESS;
+	}
+	else if (pVadShort->u.VadFlags.PreferredNode == 0x7)
+	{
+		pVadShort->u.VadFlags.PreferredNode = 6;
+		return STATUS_SUCCESS;
+	}
+	else if (pVadShort->u.VadFlags.PageSize == 0x7)
+	{
+		pVadShort->u.VadFlags.PageSize = 6;
+		return STATUS_SUCCESS;
+	}
+	else if (pVadShort->u.VadFlags.PrivateMemory == 0x7)
+	{
+		pVadShort->u.VadFlags.PrivateMemory = 6;
+		return STATUS_SUCCESS;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -235,7 +234,7 @@ PLOAD_IMAGE_NOTIFY_ROUTINE ImageLoadCallback(PUNICODE_STRING FullImageName, HAND
 
 		if (!NT_SUCCESS(status))
 		{
-			LOG("PsCreateSystemThread failed 0x%lX", status);
+			//LOG("PsCreateSystemThread failed 0x%lX", status);
 			return STATUS_SUCCESS;
 		}
 	}
