@@ -3,7 +3,7 @@
 #include "ntos.h"
 #include "NT.h"
 
-#pragma warning (disable: 4100 4311 4047 4024 6273 4146 4113)
+#pragma warning (disable: 4100 4311 4047 4024 6273 4146 4113 4189)
 
 #define LOG(x, ...) DbgPrintEx(0, 0, x, __VA_ARGS__)
 
@@ -161,54 +161,8 @@ NTSTATUS UnprotectSecNoChange()
 		return STATUS_SUCCESS;
 	}
 
-	//pVadShort->u.VadFlags.NoChange = 0;
-	//pVadShort->u.VadFlags.Protection = 6;
-
-	if (pVadShort->u.VadFlags.Lock == 0x7)
-	{
-		pVadShort->u.VadFlags.Lock = 6;
-		return STATUS_SUCCESS;
-	}
-	else if (pVadShort->u.VadFlags.LockContended == 0x7)
-	{
-		pVadShort->u.VadFlags.LockContended = 6;
-		return STATUS_SUCCESS;
-	}
-	else if (pVadShort->u.VadFlags.DeleteInProgress == 0x7)
-	{
-		pVadShort->u.VadFlags.DeleteInProgress = 6;
-		return STATUS_SUCCESS;
-	}
-	else if (pVadShort->u.VadFlags.NoChange == 0x7)
-	{
-		pVadShort->u.VadFlags.NoChange = 6;
-		return STATUS_SUCCESS;
-	}
-	else if (pVadShort->u.VadFlags.VadType == 0x7)
-	{
-		pVadShort->u.VadFlags.VadType = 6;
-		return STATUS_SUCCESS;
-	}
-	else if (pVadShort->u.VadFlags.Protection == 0x7)
-	{
-		pVadShort->u.VadFlags.Protection = 6;
-		return STATUS_SUCCESS;
-	}
-	else if (pVadShort->u.VadFlags.PreferredNode == 0x7)
-	{
-		pVadShort->u.VadFlags.PreferredNode = 6;
-		return STATUS_SUCCESS;
-	}
-	else if (pVadShort->u.VadFlags.PageSize == 0x7)
-	{
-		pVadShort->u.VadFlags.PageSize = 6;
-		return STATUS_SUCCESS;
-	}
-	else if (pVadShort->u.VadFlags.PrivateMemory == 0x7)
-	{
-		pVadShort->u.VadFlags.PrivateMemory = 6;
-		return STATUS_SUCCESS;
-	}
+	pVadShort->u.VadFlags.NoChange = 0;
+	pVadShort->u.VadFlags.Protection = 6;
 
 	return STATUS_SUCCESS;
 }
@@ -223,6 +177,7 @@ PLOAD_IMAGE_NOTIFY_ROUTINE ImageLoadCallback(PUNICODE_STRING FullImageName, HAND
 
 		NTSTATUS status = STATUS_SUCCESS;
 		HANDLE hThread = NULL;
+		PEPROCESS pProcess = NULL;
 
 		status = PsCreateSystemThread(
 			&hThread, 
