@@ -5,6 +5,5 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ntos.h" />
-    <ClInclude Include="NT.h" />
   </ItemGroup>
 </Project>

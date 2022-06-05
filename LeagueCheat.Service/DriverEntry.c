@@ -1,214 +1,219 @@
 #include <ntifs.h>
 
 #include "ntos.h"
-#include "NT.h"
 
-#pragma warning (disable: 4100 4311 4047 4024 6273 4146 4113 4189)
+#pragma warning (disable: 4022 4100 4311 4047 4024 6273 4146 4113 4189 6011)
 
 #define LOG(x, ...) DbgPrintEx(0, 0, x, __VA_ARGS__)
 
-TABLE_SEARCH_RESULT MiFindNodeOrParent(
-	IN PMM_AVL_TABLE Table,
-	IN ULONG_PTR StartingVpn,
-	OUT PMMADDRESS_NODE* NodeOrParent
-) {
-	PMMADDRESS_NODE Child;
-	PMMADDRESS_NODE NodeToExamine;
-	PMMVAD_SHORT    VpnCompare;
-	ULONG_PTR       startVpn;
-	ULONG_PTR       endVpn;
+#define IOCTL_READ_MEMORY CTL_CODE(FILE_DEVICE_UNKNOWN, 0x6991, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define IOCTL_WRITE_MEMORY CTL_CODE(FILE_DEVICE_UNKNOWN, 0x6992, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+#define IOCTL_WRITE_PROTECTED_MEMORY CTL_CODE(FILE_DEVICE_UNKNOWN, 0x6993, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
 
-	if (Table->NumberGenericTableElements == 0) {
-		return TableEmptyTree;
+typedef struct _READ_MEMORY_DATA
+{
+	ULONG ProcessId;
+	ULONG TargetAddress;
+	PVOID Buffer;
+	ULONG BufferSize;
+
+} READ_MEMORY_DATA, * PREAD_MEMORY_DATA;
+
+typedef struct _WRITE_MEMORY_DATA
+{
+	ULONG ProcessId;
+	ULONG TargetAddress;
+	PVOID Buffer;
+	ULONG BufferSize;
+
+} WRITE_MEMORY_DATA, * PWRITE_MEMORY_DATA;
+
+typedef struct _WRITE_PROTECTED_MEMORY_DATA
+{
+	ULONG ProcessId;
+	ULONG TargetAddress;
+	PVOID Buffer;
+	ULONG BufferSize;
+
+} WRITE_PROTECTED_MEMORY_DATA, * PWRITE_PROTECTED_MEMORY_DATA;
+
+PDEVICE_OBJECT pDeviceObject;
+UNICODE_STRING Dev, Dos;
+
+NTSTATUS ReadMemory(PEPROCESS Process, PVOID SourceAddress, PVOID TargetAddress, SIZE_T BufferSize)
+{
+	SIZE_T bytes;
+	if (NT_SUCCESS(MmCopyVirtualMemory(Process,
+									   SourceAddress,
+									   PsGetCurrentProcess(), 
+									   TargetAddress, 
+									   BufferSize,
+									   KernelMode, 
+									   &bytes)))
+	{
+		return STATUS_SUCCESS;
 	}
 
-	NodeToExamine = (PMMADDRESS_NODE)(Table->BalancedRoot);
-
-	for (;;) {
-
-		VpnCompare = (PMMVAD_SHORT)NodeToExamine;
-		startVpn = VpnCompare->StartingVpn;
-		endVpn = VpnCompare->EndingVpn;
-
-#if defined( _WIN81_ ) || defined( _WIN10_ )
-		startVpn |= (ULONG_PTR)VpnCompare->StartingVpnHigh << 32;
-		endVpn |= (ULONG_PTR)VpnCompare->EndingVpnHigh << 32;
-#endif  
-
-		//
-		// Compare the buffer with the key in the tree element.
-		//
-
-		if (StartingVpn < startVpn) {
-
-			Child = NodeToExamine->LeftChild;
-
-			if (Child != NULL) {
-				NodeToExamine = Child;
-			}
-			else {
-
-				//
-				// Node is not in the tree.  Set the output
-				// parameter to point to what would be its
-				// parent and return which child it would be.
-				//
-
-				*NodeOrParent = NodeToExamine;
-				return TableInsertAsLeft;
-			}
-		}
-		else if (StartingVpn <= endVpn) {
-
-			//
-			// This is the node.
-			//
-
-			*NodeOrParent = NodeToExamine;
-			return TableFoundNode;
-		}
-		else {
-
-			Child = NodeToExamine->RightChild;
-
-			if (Child != NULL) {
-				NodeToExamine = Child;
-			}
-			else {
-
-				//
-				// Node is not in the tree.  Set the output
-				// parameter to point to what would be its
-				// parent and return which child it would be.
-				//
-
-				*NodeOrParent = NodeToExamine;
-				return TableInsertAsRight;
-			}
-		}
-
-	};
+	return STATUS_ACCESS_DENIED;
 }
 
-NTSTATUS FindVAD(
-	IN PEPROCESS pProcess,
-	IN ULONG_PTR address,
-	OUT PMMVAD_SHORT* pResult
-) {
+NTSTATUS WriteMemory(PEPROCESS Process, PVOID SourceAddress, PVOID TargetAddress, SIZE_T BufferSize)
+{
+	SIZE_T bytes;
+	if (NT_SUCCESS(MmCopyVirtualMemory(PsGetCurrentProcess(), 
+									   SourceAddress, 
+									   Process, 
+									   TargetAddress, 
+									   BufferSize,
+									   KernelMode, 
+									   &bytes)))
+	{
+		return STATUS_SUCCESS;
+	}
+
+	return STATUS_ACCESS_DENIED;
+}
+
+NTSTATUS WriteProtectedMemory(PEPROCESS Process, PVOID SourceAddress, PVOID TargetAddress, SIZE_T BufferSize)
+{
+	SIZE_T bytes;
+	NTSTATUS status;
+
+	_disable();
+	UINT64 cr0 = __readcr0();
+	UINT64 pcr0 = cr0;
+	cr0 &= ~(1 << 16);
+	__writecr0(cr0);
+
+	status = MmCopyVirtualMemory(PsGetCurrentProcess(),
+						SourceAddress,
+						Process,
+						TargetAddress,
+						BufferSize,
+						KernelMode,
+						&bytes);
+
+	__writecr0(pcr0);
+	_enable();
+
+	if (NT_SUCCESS(status))
+	{
+		return STATUS_SUCCESS;
+	}
+
+	return STATUS_SUCCESS;
+}
+
+NTSTATUS CreateCall(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	Irp->IoStatus.Status = STATUS_SUCCESS;
+	Irp->IoStatus.Information = 0;
+	IoCompleteRequest(Irp, IO_NO_INCREMENT);
+
+	return STATUS_SUCCESS;
+}
+
+NTSTATUS CloseCall(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
+	Irp->IoStatus.Status = STATUS_SUCCESS;
+	Irp->IoStatus.Information = 0;
+	IoCompleteRequest(Irp, IO_NO_INCREMENT);
+
+	return STATUS_SUCCESS;
+}
+
+NTSTATUS IoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+{
 	NTSTATUS status = STATUS_SUCCESS;
-	ULONG_PTR vpnStart = address >> PAGE_SHIFT;
+	ULONG bytesIO = 0;
 
-	ASSERT(pProcess != NULL && pResult != NULL);
-	if (pProcess == NULL || pResult == NULL)
-		return STATUS_INVALID_PARAMETER;
+	PIO_STACK_LOCATION stack = IoGetCurrentIrpStackLocation(Irp);
+	ULONG controlCode = stack->Parameters.DeviceIoControl.IoControlCode;
 
+	switch (controlCode)
+	{
+		case IOCTL_READ_MEMORY:
+		{
+			PREAD_MEMORY_DATA data = (PREAD_MEMORY_DATA)Irp->AssociatedIrp.SystemBuffer;
 
-	PMM_AVL_TABLE pTable = (PMM_AVL_TABLE)((PUCHAR)pProcess + 0x7d8);
-	PMM_AVL_NODE pNode = (pTable->BalancedRoot);
+			PEPROCESS pProcess;
+			if (NT_SUCCESS(PsLookupProcessByProcessId(data->ProcessId, &pProcess)))
+			{
+				ReadMemory(pProcess, data->TargetAddress, data->Buffer, data->BufferSize);
+			}
 
-	if (MiFindNodeOrParent(pTable, vpnStart, &pNode) == TableFoundNode) {
-		*pResult = (PMMVAD_SHORT)pNode;
+			status = STATUS_SUCCESS;
+			bytesIO = sizeof(READ_MEMORY_DATA);
+
+			break;
+		}
+		case IOCTL_WRITE_MEMORY:
+		{
+			PWRITE_MEMORY_DATA data = (PWRITE_MEMORY_DATA)Irp->AssociatedIrp.SystemBuffer;
+
+			PEPROCESS pProcess;
+			if (NT_SUCCESS(PsLookupProcessByProcessId(data->ProcessId, &pProcess)))
+			{
+				WriteMemory(pProcess, data->Buffer, data->TargetAddress, data->BufferSize);
+			}
+
+			status = STATUS_SUCCESS;
+			bytesIO = sizeof(WRITE_MEMORY_DATA);
+
+			break;
+		}
+		case IOCTL_WRITE_PROTECTED_MEMORY:
+		{
+			PWRITE_PROTECTED_MEMORY_DATA data = (PWRITE_PROTECTED_MEMORY_DATA)Irp->AssociatedIrp.SystemBuffer;
+
+			PEPROCESS pProcess;
+			if (NT_SUCCESS(PsLookupProcessByProcessId(data->ProcessId, &pProcess)))
+			{
+				WriteProtectedMemory(pProcess, data->Buffer, data->TargetAddress, data->BufferSize);
+			}
+
+			status = STATUS_SUCCESS;
+			bytesIO = sizeof(WRITE_PROTECTED_MEMORY_DATA);
+
+			break;
+		}
+		default:
+		{
+			status = STATUS_INVALID_PARAMETER;
+			break;
+		}
 	}
-	else {
-		status = STATUS_NOT_FOUND;
-	}
+
+	Irp->IoStatus.Status = status;
+	Irp->IoStatus.Information = bytesIO;
+	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
 	return status;
 }
 
-NTSTATUS Sleep(ULONG64 milliseconds)
-{
-	LARGE_INTEGER delay;
-	ULONG* split;
-
-	milliseconds *= 1000000;
-	milliseconds /= 100;
-	milliseconds = -milliseconds;
-
-	split = (ULONG*)&milliseconds;
-	delay.LowPart = *split;
-	split++;
-	delay.HighPart = *split;
-
-	KeDelayExecutionThread(KernelMode, 0, &delay);
-
-	return STATUS_SUCCESS;
-}
-
-ULONG TargetId;
-ULONG ImageBase;
-ULONG ImageSize;
-
-NTSTATUS UnprotectSecNoChange()
-{
-	Sleep(8000);
-
-	NTSTATUS status = STATUS_SUCCESS;
-	PEPROCESS pProcess = NULL;
-
-	status = PsLookupProcessByProcessId((HANDLE)TargetId, &pProcess);
-	if (!NT_SUCCESS(status))
-	{
-		//LOG("PsLookupProcessByProcessId failed 0x%lX", status);
-		return STATUS_SUCCESS;
-	}
-
-	PMMVAD_SHORT pVadShort = NULL;
-	status = FindVAD(pProcess, (ULONG64)ImageBase, &pVadShort);
-	if (!NT_SUCCESS(status))
-	{
-		//LOG("FindVAD failed 0x%lX", status);
-		return STATUS_SUCCESS;
-	}
-
-	pVadShort->u.VadFlags.NoChange = 0;
-	pVadShort->u.VadFlags.Protection = 6;
-
-	return STATUS_SUCCESS;
-}
-
-PLOAD_IMAGE_NOTIFY_ROUTINE ImageLoadCallback(PUNICODE_STRING FullImageName, HANDLE ProcessId, PIMAGE_INFO ImageInfo)
-{
-	if (wcsstr(FullImageName->Buffer, L"League of Legends.exe"))
-	{
-		TargetId = (ULONG)ProcessId;
-		ImageBase = (ULONG)ImageInfo->ImageBase;
-		ImageSize = (ULONG)ImageInfo->ImageSize;
-
-		NTSTATUS status = STATUS_SUCCESS;
-		HANDLE hThread = NULL;
-		PEPROCESS pProcess = NULL;
-
-		status = PsCreateSystemThread(
-			&hThread, 
-			THREAD_ALL_ACCESS,
-			0, 0, 0,
-			UnprotectSecNoChange,
-			0
-		);
-
-		if (!NT_SUCCESS(status))
-		{
-			//LOG("PsCreateSystemThread failed 0x%lX", status);
-			return STATUS_SUCCESS;
-		}
-	}
-
-	return STATUS_SUCCESS;
-}
-
 NTSTATUS UnloadDriver(PDRIVER_OBJECT pDriverObject)
 {
-    PsRemoveLoadImageNotifyRoutine(ImageLoadCallback);
+	IoDeleteSymbolicLink(&Dos);
+	IoDeleteDevice(pDriverObject->DeviceObject);
 
     return STATUS_SUCCESS;
 }
 
 NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
 {
-    pDriverObject->DriverUnload = UnloadDriver;
+	RtlInitUnicodeString(&Dev, L"\\Device\\LeagueCheat.IO");
+	RtlInitUnicodeString(&Dos, L"\\DosDevices\\LeagueCheat.IO");
 
-    PsSetLoadImageNotifyRoutine(ImageLoadCallback);
+	IoCreateDevice(pDriverObject, 0, &Dev, FILE_DEVICE_UNKNOWN, FILE_DEVICE_SECURE_OPEN, FALSE, &pDeviceObject);
+	IoCreateSymbolicLink(&Dos, &Dev);
+
+	pDriverObject->MajorFunction[IRP_MJ_CREATE] = CreateCall;
+	pDriverObject->MajorFunction[IRP_MJ_CLOSE] = CloseCall;
+	pDriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = IoControl;
+	pDriverObject->DriverUnload = UnloadDriver;
+
+	pDeviceObject->Flags |= DO_DIRECT_IO;
+	pDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
 
     return STATUS_SUCCESS;
 }
