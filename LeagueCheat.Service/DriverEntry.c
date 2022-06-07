@@ -79,26 +79,30 @@ NTSTATUS WriteProtectedMemory(PEPROCESS Process, PVOID SourceAddress, PVOID Targ
 	SIZE_T bytes;
 	NTSTATUS status;
 
-	_disable();
-	UINT64 cr0 = __readcr0();
-	UINT64 pcr0 = cr0;
-	cr0 &= ~(1 << 16);
-	__writecr0(cr0);
-
-	status = MmCopyVirtualMemory(PsGetCurrentProcess(),
-						SourceAddress,
-						Process,
-						TargetAddress,
-						BufferSize,
-						KernelMode,
-						&bytes);
-
-	__writecr0(pcr0);
-	_enable();
-
-	if (NT_SUCCESS(status))
+	__try
 	{
-		return STATUS_SUCCESS;
+		_disable();
+		__writecr0(__readcr0() & (~(1 << 16)));
+
+		status = MmCopyVirtualMemory(PsGetCurrentProcess(),
+									 SourceAddress,
+									 Process,
+									 TargetAddress,
+									 BufferSize,
+									 KernelMode,
+									 &bytes);
+
+		__writecr0(__readcr0() | (1 << 16));
+		_enable();
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		return STATUS_ACCESS_DENIED;
+	}
+
+	if (!NT_SUCCESS(status))
+	{
+		return STATUS_ACCESS_DENIED;
 	}
 
 	return STATUS_SUCCESS;
