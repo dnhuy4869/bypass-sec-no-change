@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../DriverEntry.h"
-#include "../NativeStructs/10.0.19041.h"
+#include "../NativeStructs/Nt21292.h"
 
 typedef struct _READ_MEMORY_DATA
 {
