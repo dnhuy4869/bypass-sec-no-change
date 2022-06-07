@@ -2,8 +2,14 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="DriverEntry.c" />
+    <ClCompile Include="IoControl\IoControl.c" />
+    <ClCompile Include="IoMethod\IoMethod.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ntos.h" />
+    <ClInclude Include="IoControl\IoControl.h" />
+    <ClInclude Include="DriverEntry.h" />
+    <ClInclude Include="IoMethod\IoMethod.h" />
+    <ClInclude Include="NativeStructs\10.0.19041.h" />
   </ItemGroup>
 </Project>

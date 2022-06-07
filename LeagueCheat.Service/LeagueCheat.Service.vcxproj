@@ -146,8 +146,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DriverEntry.c" />
+    <ClCompile Include="IoControl\IoControl.c" />
+    <ClCompile Include="IoMethod\IoMethod.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="DriverEntry.h" />
+    <ClInclude Include="IoControl\IoControl.h" />
+    <ClInclude Include="IoMethod\IoMethod.h" />
+    <ClInclude Include="NativeStructs\10.0.19041.h" />
     <ClInclude Include="ntos.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
