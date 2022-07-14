@@ -166,6 +166,7 @@
     <ClInclude Include="NativeStructs\Nt20150.h" />
     <ClInclude Include="NativeStructs\Nt20180.h" />
     <ClInclude Include="NativeStructs\Nt21292.h" />
+    <ClInclude Include="NativeStructs\Nt22000.h" />
     <ClInclude Include="ntos.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
