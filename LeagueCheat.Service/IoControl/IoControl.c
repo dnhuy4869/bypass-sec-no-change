@@ -88,6 +88,21 @@ NTSTATUS IoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 			break;
 		}
+		case IOCTL_ENABLE_SEC_NO_CHANGE:
+		{
+			PENABLE_SEC_NO_CHANGE_DATA data = (PENABLE_SEC_NO_CHANGE_DATA)Irp->AssociatedIrp.SystemBuffer;
+
+			PEPROCESS pProcess;
+			if (NT_SUCCESS(PsLookupProcessByProcessId(data->ProcessId, &pProcess)))
+			{
+				EnableSecNoChange(pProcess, data->TargetAddress);
+			}
+
+			status = STATUS_SUCCESS;
+			bytesIO = sizeof(ENABLE_SEC_NO_CHANGE_DATA);
+
+			break;
+		}
 		default:
 		{
 			status = STATUS_INVALID_PARAMETER;

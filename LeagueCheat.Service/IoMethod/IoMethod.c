@@ -186,8 +186,24 @@ NTSTATUS BypassSecNoChange(PEPROCESS Process, ULONG TargetAddress)
 		return STATUS_ACCESS_DENIED;
 	}
 
-	pVadShort->u.VadFlags.NoChange = 0;
-	pVadShort->u.VadFlags.Protection = 6;
+	pVadShort->u.VadFlags.NoChange = 0x0;
+	pVadShort->u.VadFlags.Protection = 0x6;
+
+	return STATUS_SUCCESS;
+}
+
+NTSTATUS EnableSecNoChange(PEPROCESS Process, ULONG TargetAddress)
+{
+	PMMVAD_SHORT pVadShort = NULL;
+	NTSTATUS status = FindVAD(Process, (ULONG64)TargetAddress, &pVadShort);
+	if (!NT_SUCCESS(status))
+	{
+		return STATUS_ACCESS_DENIED;
+	}
+
+	pVadShort->u.VadFlags.NoChange = 0x0;
+	pVadShort->u.VadFlags.VadType = 0x0;
+	pVadShort->u.VadFlags.Protection = 0x7;
 
 	return STATUS_SUCCESS;
 }
