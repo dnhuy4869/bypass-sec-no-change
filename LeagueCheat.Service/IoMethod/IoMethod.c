@@ -179,6 +179,8 @@ NTSTATUS FindVAD(
 
 NTSTATUS BypassSecNoChange(PEPROCESS Process, ULONG TargetAddress)
 {
+	VMProtectBeginMutation(__FUNCTION__);
+
 	PMMVAD_SHORT pVadShort = NULL;
 	NTSTATUS status = FindVAD(Process, (ULONG64)TargetAddress, &pVadShort);
 	if (!NT_SUCCESS(status))
@@ -189,11 +191,14 @@ NTSTATUS BypassSecNoChange(PEPROCESS Process, ULONG TargetAddress)
 	pVadShort->u.VadFlags.NoChange = 0x0;
 	pVadShort->u.VadFlags.Protection = 0x6;
 
+	VMProtectEnd();
 	return STATUS_SUCCESS;
 }
 
 NTSTATUS EnableSecNoChange(PEPROCESS Process, ULONG TargetAddress)
 {
+	VMProtectBeginMutation(__FUNCTION__);
+
 	PMMVAD_SHORT pVadShort = NULL;
 	NTSTATUS status = FindVAD(Process, (ULONG64)TargetAddress, &pVadShort);
 	if (!NT_SUCCESS(status))
@@ -205,5 +210,6 @@ NTSTATUS EnableSecNoChange(PEPROCESS Process, ULONG TargetAddress)
 	pVadShort->u.VadFlags.VadType = 0x0;
 	pVadShort->u.VadFlags.Protection = 0x7;
 
+	VMProtectEnd();
 	return STATUS_SUCCESS;
 }

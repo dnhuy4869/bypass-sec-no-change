@@ -153,21 +153,13 @@
     <ClInclude Include="DriverEntry.h" />
     <ClInclude Include="IoControl\IoControl.h" />
     <ClInclude Include="IoMethod\IoMethod.h" />
-    <ClInclude Include="NativeStructs\Nt10240.h" />
-    <ClInclude Include="NativeStructs\Nt10586.h" />
-    <ClInclude Include="NativeStructs\Nt14393.h" />
-    <ClInclude Include="NativeStructs\Nt15063.h" />
-    <ClInclude Include="NativeStructs\Nt16299.h" />
-    <ClInclude Include="NativeStructs\Nt17134.h" />
-    <ClInclude Include="NativeStructs\Nt17763.h" />
-    <ClInclude Include="NativeStructs\Nt18362.h" />
     <ClInclude Include="NativeStructs\Nt19041.h" />
-    <ClInclude Include="NativeStructs\Nt19569.h" />
-    <ClInclude Include="NativeStructs\Nt20150.h" />
-    <ClInclude Include="NativeStructs\Nt20180.h" />
-    <ClInclude Include="NativeStructs\Nt21292.h" />
     <ClInclude Include="NativeStructs\Nt22000.h" />
     <ClInclude Include="ntos.h" />
+    <ClInclude Include="VMProtectSDK\VMProtectDDK.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="VMProtectSDK\VMProtectDDK64.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

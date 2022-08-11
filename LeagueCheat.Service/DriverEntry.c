@@ -1,6 +1,7 @@
 #include "./DriverEntry.h"
 #include "./IoMethod/IoMethod.h"
 #include "./IoControl/IoControl.h"
+#include "./VMProtectSDK/VMProtectDDK.h"
 
 PDEVICE_OBJECT pDeviceObject;
 UNICODE_STRING Dev, Dos;
@@ -10,8 +11,10 @@ NTSTATUS UnloadDriver(PDRIVER_OBJECT pDriverObject);
 
 NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath)
 {
-	RtlInitUnicodeString(&Dev, L"\\Device\\LeagueCheat.IO");
-	RtlInitUnicodeString(&Dos, L"\\DosDevices\\LeagueCheat.IO");
+	VMProtectBeginMutation(__FUNCTION__);
+
+	RtlInitUnicodeString(&Dev, VMProtectDecryptStringW(L"\\Device\\LeagueCheat.IO"));
+	RtlInitUnicodeString(&Dos, VMProtectDecryptStringW(L"\\DosDevices\\LeagueCheat.IO"));
 
 	IoCreateDevice(pDriverObject, 0, &Dev, FILE_DEVICE_UNKNOWN, FILE_DEVICE_SECURE_OPEN, FALSE, &pDeviceObject);
 	IoCreateSymbolicLink(&Dos, &Dev);
@@ -24,6 +27,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING pRegistryPath
 	pDeviceObject->Flags |= DO_DIRECT_IO;
 	pDeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
 
+	VMProtectEnd();
     return STATUS_SUCCESS;
 }
 

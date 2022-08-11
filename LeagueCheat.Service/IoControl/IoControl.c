@@ -20,11 +20,15 @@ NTSTATUS CloseCall(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 
 NTSTATUS IoControl(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
+	VMProtectBeginMutation(__FUNCTION__);
+
 	NTSTATUS status = STATUS_SUCCESS;
 	ULONG bytesIO = 0;
 
 	PIO_STACK_LOCATION stack = IoGetCurrentIrpStackLocation(Irp);
 	ULONG controlCode = stack->Parameters.DeviceIoControl.IoControlCode;
+
+	VMProtectEnd();
 
 	switch (controlCode)
 	{
